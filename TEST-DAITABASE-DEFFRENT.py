@@ -392,6 +392,38 @@ def get_balance_stellar(address):
         print(f"Error processing Stellar balance data: {e}")
         return None
 
+from urllib.parse import urlencode
+class BalanceFetcher:
+    def __init__(self, address, api_key=None):
+        self.address = address
+        self.api_key = api_key
+
+    def _get_balance(self, url):
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()['result']
+        else:
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            raise Exception(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+
+class EtcBalanceFetcher(BalanceFetcher):
+    def __init__(self, address, api_key=None):
+        super().__init__(address, api_key)
+
+    def get_balance(self, api_key=None):
+        base_url = "https://blockscout.com/etc/mainnet/api"
+        query_params = {
+            "module": "account",
+            "action": "balance",
+            "address": self.address,
+            "tag": "latest",
+            "apikey": api_key if api_key is not None else self.api_key
+        }
+        url = base_url + "?" + urlencode(query_params)
+        balance_wei = self._get_balance(url)
+        balance_etc = int(balance_wei, 16) / (10 ** 18)  # Convert the hexadecimal result to an integer and from wei to ETC
+        return balance_etc
+
 addresses = {
     "XRP": "r4KR4HraNJYQtufsQCSZNQQuFx2fiNhGxv",
     "ETH": "0x8cB34b21dad081adFAd82E2B1769AB22D1c7cEE8",
@@ -412,6 +444,7 @@ addresses = {
     "BNB_BEP20": "0x264D6643a7d661bE5A14F023370B4e3d61d2Bf87",
     "XLM": "GDSMCZHDD3OC73YSMURAJYKA5MGTQI726DW7IHLW5SHKLP3CJ4QU474N",
     "LINK": "0xb507FbBaa0da1a39F22B986C2D4Cb3B8084E8b94",
+    "ETC": "0x3053e82fd68d6d7fa2826ccb5e99b984d10740e4",
     "MANA": "0x0F5D2fB29fb7d3CFeE444a200298f468908cC942"
 }
 # Create fetchers
@@ -430,7 +463,8 @@ fetchers = [
     BnbBep2BalanceFetcher(address=addresses["BNB_BEP2"]),
     BscBep20BalanceFetcher(address=addresses["BNB"], api_key="W5IRFIP8Z1EM1Z1CKM4WRB3TDXKAUN9R3R"),
     CardanoBalanceFetcher(address=addresses["ADA"]),
-    StellarBalanceFetcher(address=addresses["XLM"])
+    StellarBalanceFetcher(address=addresses["XLM"]),
+    EtcBalanceFetcher(address=addresses["ETC"])
     ]
 
 # Create fetchers directly in the tokens dictionary
@@ -446,6 +480,7 @@ tokens = [
     {"name": "BTC", "symbol": "btc", "decimals": 8, "fetcher": BitcoinBalanceFetcher(address=addresses["BTC"])},
     {"name": "BCH", "symbol": "bch", "decimals": 8, "fetcher": BitcoinCashBalanceFetcher(address=addresses["BCH"])},
     {"name": "ADA", "symbol": "ada", "decimals": 6, "fetcher": CardanoBalanceFetcher(address=addresses["ADA"])},
+    {"name": "ETC", "symbol": "etc", "decimals": 18, "fetcher": EtcBalanceFetcher(address=addresses["ETC"])},
     {"name": "BNB_BEP2", "symbol": "bnb_bep2", "decimals": 8, "fetcher": BnbBep2BalanceFetcher(address=addresses["BNB_BEP2"])},
     {"name": "QTUM", "symbol": "qtum", "decimals": 8, "fetcher": QtumBalanceFetcher(address=addresses["QTUM"])},
     {"name": "NEO", "symbol": "neo", "decimals": 8, "fetcher": NeoBalanceFetcher(address=addresses["NEO"])},
