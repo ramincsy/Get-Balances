@@ -11,6 +11,7 @@ from iconsdk.builder.call_builder import CallBuilder
 import logging
 import sys
 import traceback
+import threading
 
 
 # مشخصات اتصال به دیتابیس  
@@ -23,30 +24,40 @@ driver= '{ODBC Driver 17 for SQL Server}'
 # راه اندازی لاگر
 logging.basicConfig(filename='error.log', level=logging.ERROR)
 
-class BalanceFetcher:  
-  def __init__(self, address, api_key=None):  
-    self.address = address  
-    self.api_key = api_key  
+class BalanceFetcher:   
+    def __init__(self, address, api_key=None):   
+        self.address = address  
+        self.api_key = api_key
 
-  def _get_balance(self, url):  
-    try:
-      response = requests.get(url)  
-      if response.status_code == 200:  
-        return json.loads(response.text)['result']  
-      else:  
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
-        raise Exception(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
-    except requests.exceptions.RequestException as e:
-      current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-      error_info = sys.exc_info()
-      logging.error(f"({current_time}) RequestException in {self.__class__.__name__} with address {self.address}: {e}")
-      logging.error("".join(traceback.format_exception(*error_info)))
-    except Exception as e:
-      current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-      error_info = sys.exc_info()
-      logging.error(f"({current_time}) Unexpected error in {self.__class__.__name__} with address {self.address}: {e}")
-      logging.error("".join(traceback.format_exception(*error_info)))
+    def _get_balance(self, url):   
+        try:
+            # Use threading here
+            thread = threading.Thread(target=self._get_balance_threaded, args=(url,))
+            thread.start()
+        except Exception as e:  
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
+            error_info = sys.exc_info()  
+            logging.error(f"({current_time}) Unexpected error in {self.__class__.__name__} with address {self.address}: {e}")  
+            logging.error("".join(traceback.format_exception(*error_info)))
 
+    def _get_balance_threaded(self, url):
+        try:  
+            response = requests.get(url)   
+            if response.status_code == 200:   
+                return json.loads(response.text)['result']   
+            else:   
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')   
+                raise Exception(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")  
+        except requests.exceptions.RequestException as e:  
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
+            error_info = sys.exc_info()  
+            logging.error(f"({current_time}) RequestException in {self.__class__.__name__} with address {self.address}: {e}")  
+            logging.error("".join(traceback.format_exception(*error_info)))  
+        except Exception as e:  
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
+            error_info = sys.exc_info()  
+            logging.error(f"({current_time}) Unexpected error in {self.__class__.__name__} with address {self.address}: {e}")  
+            logging.error("".join(traceback.format_exception(*error_info)))  
 
 class EtherscanBalanceFetcher(BalanceFetcher):  
   def __init__(self, address, api_key):  
@@ -549,36 +560,6 @@ tokens = [
     {"name": "XLM", "symbol": "xlm", "decimals": 7, "fetcher": StellarBalanceFetcher(address=addresses["XLM"])}
     ]
 
-fetcher_currencies = {
-    XrpBalanceFetcher: 'xrp',
-    EtherscanBalanceFetcher: 'eth',
-    TronscanBalanceFetcher: 'trx',
-    NeoBalanceFetcher: 'neo',
-    PolygonscanBalanceFetcher: 'matic',
-    LtcBalanceFetcher: 'ltc',
-    MaticBalanceFetcher: 'matic',
-    BitcoinBalanceFetcher: 'btc',
-    BitcoinCashBalanceFetcher: 'bch',
-    QtumBalanceFetcher: 'qtum',
-    DogeBalanceFetcher: 'doge',
-    BnbBep2BalanceFetcher: 'bnb',
-    BscBep20BalanceFetcher: 'bnb',
-    CardanoBalanceFetcher: 'ada',
-    StellarBalanceFetcher: 'xlm',
-    EtcBalanceFetcher: 'etc'
-    # Add other fetchers here if needed
-}
-
-
-
-# Fetch and print balances
-for fetcher in fetchers:
-    currency = fetcher_currencies[fetcher.__class__]
-    try:
-        balance = fetcher.get_balance(currency)
-        print(f"{fetcher.__class__.__name__} Balance: {balance}")
-    except Exception as e:
-        print(f"Error retrieving {currency.upper()} balance: {e}")
 
 while True:
     # ایجاد اتصال به دیتابیس
