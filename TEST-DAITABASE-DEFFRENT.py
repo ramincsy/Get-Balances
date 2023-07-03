@@ -1,222 +1,243 @@
-import pyodbc
-import requests
-from decimal import Decimal
-import time
-from datetime import datetime
-import json
-import abc
-import logging
-from iconsdk.icon_service import IconService
-from iconsdk.providers.http_provider import HTTPProvider
+import pyodbc  
+import requests  
+from decimal import Decimal  
+import time  
+from datetime import datetime  
+import json  
+import abc   
+from iconsdk.icon_service import IconService  
+from iconsdk.providers.http_provider import HTTPProvider  
 from iconsdk.builder.call_builder import CallBuilder
+import logging
+import sys
+import traceback
 
-# مشخصات اتصال به دیتابیس
-server = '.'
-database = 'Get-Balance-Rebital'
-username = 'sa'
-password = 'Rebital@123'
-driver= '{ODBC Driver 17 for SQL Server}'
+
+# مشخصات اتصال به دیتابیس  
+server = '.'  
+database = 'Get-Balance-Rebital'  
+username = 'sa'  
+password = 'Rebital@123'  
+driver= '{ODBC Driver 17 for SQL Server}'  
 
 # راه اندازی لاگر
 logging.basicConfig(filename='error.log', level=logging.ERROR)
 
-from datetime import datetime
+class BalanceFetcher:  
+  def __init__(self, address, api_key=None):  
+    self.address = address  
+    self.api_key = api_key  
 
-class BalanceFetcher:
-    def __init__(self, address, api_key=None):
-        self.address = address
-        self.api_key = api_key
+  def _get_balance(self, url):  
+    try:
+      response = requests.get(url)  
+      if response.status_code == 200:  
+        return json.loads(response.text)['result']  
+      else:  
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
+        raise Exception(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+      error_info = sys.exc_info()
+      logging.error(f"({current_time}) RequestException in {self.__class__.__name__} with address {self.address}: {e}")
+      logging.error("".join(traceback.format_exception(*error_info)))
+    except Exception as e:
+      current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+      error_info = sys.exc_info()
+      logging.error(f"({current_time}) Unexpected error in {self.__class__.__name__} with address {self.address}: {e}")
+      logging.error("".join(traceback.format_exception(*error_info)))
 
-    def _get_balance(self, url):
-        response = requests.get(url)
-        if response.status_code == 200:
-            return json.loads(response.text)['result']
-        else:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            raise Exception(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
 
+class EtherscanBalanceFetcher(BalanceFetcher):  
+  def __init__(self, address, api_key):  
+    super().__init__(address)  
+    self.api_key = api_key  
+  
+  def get_balance(self, currency):  
+    try:
+        contract_address = currency['contract']  
+        if contract_address:  
+            url = f"https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress={contract_address}&address={self.address}&tag=latest&apikey={self.api_key}"  
+        else:  
+            url = f"https://api.etherscan.io/api?module=account&action=balance&address={self.address}&tag=latest&apikey={self.api_key}"  
 
+        response = requests.get(url)  
 
-class EtherscanBalanceFetcher(BalanceFetcher):
-    def __init__(self, address, api_key):
-        super().__init__(address)
-        self.api_key = api_key
-
-    def get_balance(self, currency):
-        contract_address = currency['contract']
-        if contract_address:
-            url = f"https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress={contract_address}&address={self.address}&tag=latest&apikey={self.api_key}"
-        else:
-            url = f"https://api.etherscan.io/api?module=account&action=balance&address={self.address}&tag=latest&apikey={self.api_key}"
-
-        response = requests.get(url)
-        
-        if response.status_code == 200:
-            result = json.loads(response.text)['result']
-            if result.isdigit():
+        if response.status_code == 200:  
+            result = json.loads(response.text)['result']  
+            if result.isdigit():  
                 return int(result) / (10 ** currency['decimals'])
-            else:
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"({current_time}) Error retrieving balance: {result}")
-                return None
-        else:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+            else:  
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
+                print(f"({current_time}) Error retrieving balance: {result}")  
+                return None  
+        else:  
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  
+            print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")  
             return None
-
+    except Exception as e:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        error_info = sys.exc_info()
+        logging.error(f"({current_time}) Error in {self.__class__.__name__} with address {self.address}: {e}")
+        logging.error("".join(traceback.format_exception(*error_info)))
+        return None
         
-class PolygonscanBalanceFetcher(BalanceFetcher):
-    def __init__(self, address, api_key):
-        super().__init__(address)
-        self.api_key = api_key
+class PolygonscanBalanceFetcher(BalanceFetcher):  
+  def __init__(self, address, api_key):  
+    super().__init__(address)  
+    self.api_key = api_key  
 
-    def get_balance(self, currency):
-        url = f"https://api.polygonscan.com/api?module=account&action=balance&address={self.address}&tag=latest&apikey={self.api_key}"
-        
-        response = requests.get(url)
-        if response.status_code == 200:
-            result = json.loads(response.text)['result']
-            if result.isdigit():
-                return int(result) / (10 ** currency['decimals'])
-            else:
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"({current_time}) Error retrieving balance: {result}")
-                return None
+  def get_balance(self, currency):  
+    try:  
+      url = f"https://api.polygonscan.com/api?module=account&action=balance&address={self.address}&tag=latest&apikey={self.api_key}"  
+      response = requests.get(url)  
+      if response.status_code == 200:  
+        result = json.loads(response.text)['result']  
+        if result.isdigit():  
+          return int(result) / (10 ** currency['decimals'])
         else:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
-            return None
+          raise ValueError(f"Error retrieving balance: {result}")
+      else:  
+        raise ValueError(f"HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      logging.error(f"RequestException: {e}")
+    except ValueError as e:
+      logging.error(f"ValueError: {e}")
+    except Exception as e:
+      logging.error(f"Unexpected error: {e}")
 
-class LtcBalanceFetcher(BalanceFetcher):
-    def get_balance(self, currency):
-        try:
-            response = requests.get(f"https://api.blockcypher.com/v1/ltc/main/addrs/{self.address}/balance")
-            if response.status_code == 200:
-                response_dict = json.loads(response.text)
-                if 'final_balance' in response_dict:
-                    balance = int(response_dict['final_balance']) / 1e8
-                    return balance
-                else:
-                    print("Error: 'final_balance' not found in the response.")
-                    return None
-            else:
-                print(f"Error: HTTP {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            print(f"Error in LtcBalanceFetcher: {e}")
-            return None
+class LtcBalanceFetcher(BalanceFetcher):  
+  def get_balance(self, currency):  
+    try:  
+      response = requests.get(f"https://api.blockcypher.com/v1/ltc/main/addrs/{self.address}/balance")  
+      if response.status_code == 200:  
+        response_dict = json.loads(response.text)  
+        if 'final_balance' in response_dict:  
+          balance = int(response_dict['final_balance']) / 1e8  
+          return balance  
+        else:  
+          raise ValueError("'final_balance' not found in the response.")
+      else:  
+        raise ValueError(f"HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      logging.error(f"RequestException: {e}")
+    except ValueError as e:
+      logging.error(f"ValueError: {e}")
+    except Exception as e:
+      logging.error(f"Unexpected error: {e}")
+    return None
+      
+class MaticBalanceFetcher(BalanceFetcher):  
+  def get_balance(self, currency):  
+    api_key = "2VFTJJANHASYH37CPMHR9CUYGGXNYUVY5B" # Enter your Polygonscan API key here  
+    try:  
+      url = f"https://api.polygonscan.com/api?module=account&action=balance&address={self.address}&tag=latest&apikey={api_key}"  
+      response = requests.get(url)  
+      if response.status_code == 200:  
+        result = json.loads(response.text)['result']  
+        if result.isdigit():  
+          return int(result) / 1e18  
+        else:  
+          raise ValueError(f"Error retrieving balance: {result}")
+      else:  
+        raise ValueError(f"HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      logging.error(f"RequestException: {e}")
+    except ValueError as e:
+      logging.error(f"ValueError: {e}")
+    except Exception as e:
+      logging.error(f"Unexpected error: {e}")
+    return None
 
-class MaticBalanceFetcher(BalanceFetcher):
-    def get_balance(self, currency):
-        api_key = "2VFTJJANHASYH37CPMHR9CUYGGXNYUVY5B"  # Enter your Polygonscan API key here
-        try:
-            url = f"https://api.polygonscan.com/api?module=account&action=balance&address={self.address}&tag=latest&apikey={api_key}"
-            response = requests.get(url)
-            if response.status_code == 200:
-                result = json.loads(response.text)['result']
-                if result.isdigit():
-                    return int(result) / 1e18
-                else:
-                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    print(f"({current_time}) Error retrieving balance: {result}")
-                    return None
-            else:
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"({current_time}) Error in MaticBalanceFetcher: {e}")
-            return None
+class TronscanBalanceFetcher(BalanceFetcher):  
+  def get_balance(self, currency):  
+    token_symbol = currency['symbol']  
+    try:  
+      url = f"https://apilist.tronscan.org/api/account?address={self.address}"  
+      response = requests.get(url)  
+      if response.status_code == 200:  
+        data = response.json()  
 
+        # Check TRX balance  
+        if token_symbol.lower() == 'trx':  
+          return float(data.get('balance', 0)) / 1e6  
 
+        # Check TRC20 token balances  
+        token_balances = data.get('trc20token_balances', [])  
+        for token in token_balances:  
+          if token['tokenAbbr'].lower() == token_symbol.lower():  
+            return float(token['balance']) / (10 ** token['tokenDecimal'])  
 
-class TronscanBalanceFetcher(BalanceFetcher):
-    def get_balance(self, currency):
-        token_symbol = currency['symbol']
-        try:
-            url = f"https://apilist.tronscan.org/api/account?address={self.address}"
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json()
-
-                # Check TRX balance
-                if token_symbol.lower() == 'trx':
-                    return float(data.get('balance', 0)) / 1e6
-
-                # Check TRC20 token balances
-                token_balances = data.get('trc20token_balances', [])
-                for token in token_balances:
-                    if token['tokenAbbr'].lower() == token_symbol.lower():
-                        return float(token['balance']) / (10 ** token['tokenDecimal'])
-
-                return None
-            else:
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
-                return None
-
-        except Exception as e:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"({current_time}) Error retrieving {token_symbol.upper()} balance on TRON: {e}")
-            return None
-
-
-class BitcoinBalanceFetcher(BalanceFetcher):
-    def get_balance(self, currency):
-        try:
-            response = requests.get(f"https://blockchain.info/q/addressbalance/{self.address}")
-            if response.status_code == 200:
-                balance = int(response.text) / 1e8
-                return balance
-            else:
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"({current_time}) Error retrieving Bitcoin balance: {e}")
-            return None
+        return None  
+      else:  
+        raise ValueError(f"HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      logging.error(f"RequestException: {e}")
+    except ValueError as e:
+      logging.error(f"ValueError: {e}")
+    except Exception as e:
+      logging.error(f"Unexpected error: {e}")
 
 
+class BitcoinBalanceFetcher(BalanceFetcher):  
+  def get_balance(self, currency):  
+    try:  
+      response = requests.get(f"https://blockchain.info/q/addressbalance/{self.address}")  
+      if response.status_code == 200:  
+        balance = int(response.text) / 1e8  
+        return balance  
+      else:  
+        raise ValueError(f"HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      logging.error(f"RequestException: {e}")
+    except ValueError as e:
+      logging.error(f"ValueError: {e}")
+    except Exception as e:
+      logging.error(f"Unexpected error: {e}")
+    return None
 
-class BitcoinCashBalanceFetcher(BalanceFetcher):
-    def get_balance(self, currency):
-        url = f"https://api.fullstack.cash/v5/electrumx/balance/{self.address}"
-        headers = {"accept": "application/json"}
-        try:
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                confirmed_balance = int(data['balance']['confirmed']) / 1e8
-                unconfirmed_balance = int(data['balance']['unconfirmed']) / 1e8
-                print(f"Confirmed Balance: {confirmed_balance}")
-                print(f"Unconfirmed Balance: {unconfirmed_balance}")
-                return confirmed_balance  # You may want to return both confirmed and unconfirmed balance based on your need
-            else:
-                print(f"Error: HTTP {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            print(f"Error retrieving Bitcoin Cash balance: {e}")
-            return None
+
+class BitcoinCashBalanceFetcher(BalanceFetcher):  
+  def get_balance(self, currency):  
+    url = f"https://api.fullstack.cash/v5/electrumx/balance/{self.address}"  
+    headers = {"accept": "application/json"}  
+    try:  
+      response = requests.get(url, headers=headers)  
+      if response.status_code == 200:  
+        data = response.json()  
+        confirmed_balance = int(data['balance']['confirmed']) / 1e8  
+        unconfirmed_balance = int(data['balance']['unconfirmed']) / 1e8  
+        return confirmed_balance # You may want to return both confirmed and unconfirmed balance based on your need  
+      else:  
+        raise ValueError(f"HTTP {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+      logging.error(f"RequestException: {e}")
+    except ValueError as e:
+      logging.error(f"ValueError: {e}")
+    except Exception as e:
+      logging.error(f"Unexpected error: {e}")
+    return None
 
 class CardanoBalanceFetcher(BalanceFetcher):
+    def __init__(self, address, api_key='mainnetmTYW1JdBJql7zY0ZleshUeebEOpVXQq4'):
+        super().__init__(address)
+        self.api_key = api_key
+
     def get_balance(self, currency):
-        api_key = 'mainnetmTYW1JdBJql7zY0ZleshUeebEOpVXQq4'
         try:
-            response = requests.get(f"https://cardano-mainnet.blockfrost.io/api/v0/addresses/{self.address}", headers={'project_id': api_key})
+            headers = {'project_id': self.api_key}
+            response = requests.get(f"https://cardano-mainnet.blockfrost.io/api/v0/addresses/{self.address}", headers=headers)
             if response.status_code == 200:
                 data = json.loads(response.text)
                 balance = int(data['amount'][0]['quantity']) / 1e6
-                print(f"Cardano Balance: {balance}")
                 return balance
             else:
                 current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+                logging.error(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
                 return None
         except Exception as e:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"({current_time}) Error retrieving Cardano balance: {e}")
+            logging.error(f"({current_time}) Error retrieving Cardano balance: {e}")
             return None
 
         
@@ -228,14 +249,17 @@ class XrpBalanceFetcher(BalanceFetcher):
             data = response.json()
             for balance in data["balances"]:
                 if balance["currency"] == "XRP":
-                    return float(balance["value"]) / 1e6  # XRP value is in drops, divide by 1 million to get XRP
+                    return float(balance["value"])  # XRP value is already in XRP, no need to divide
             return 0.0  # Return 0 if XRP balance is not found
         except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching XRP balance: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error fetching XRP balance: {e}")
             return None
         except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing XRP balance data: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error processing XRP balance data: {e}")
             return None
+
 
 class NeoBalanceFetcher(BalanceFetcher):
     def get_balance(self, currency):
@@ -251,14 +275,16 @@ class NeoBalanceFetcher(BalanceFetcher):
                 balance = entry['balance']
                 balances[symbol] = balance
 
-            print(f"NEO Balances: {balances}")
+            logging.info(f"NEO Balances: {balances}")
             return balances.get('NEO', None)  # only return the NEO balance if it exists
 
         except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching NEO balance: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error fetching NEO balance: {e}")
             return None
         except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing NEO balance data: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error processing NEO balance data: {e}")
             return None
 
 class QtumBalanceFetcher(BalanceFetcher):
@@ -270,11 +296,14 @@ class QtumBalanceFetcher(BalanceFetcher):
             balance = Decimal(data['balance']) / Decimal(1e8)  # Divide by 10^8 to convert from satoshis to QTUM
             return balance
         except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching Qtum balance: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error fetching Qtum balance: {e}")
             return None
         except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing Qtum balance data: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error processing Qtum balance data: {e}")
             return None
+
 
 class BnbBep2BalanceFetcher(BalanceFetcher):
     def get_balance(self, currency):
@@ -289,10 +318,12 @@ class BnbBep2BalanceFetcher(BalanceFetcher):
                 balance = None
             return balance
         except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching BNB BEP2 balance: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error fetching BNB BEP2 balance: {e}")
             return None
         except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing BNB BEP2 balance data: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error processing BNB BEP2 balance data: {e}")
             return None
 
 class DogeBalanceFetcher(BalanceFetcher):
@@ -304,11 +335,14 @@ class DogeBalanceFetcher(BalanceFetcher):
             balance = Decimal(data.get('balance', 0)) / Decimal(1e8)
             return balance
         except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching Doge balance: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error fetching Doge balance: {e}")
             return None
         except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing Doge balance data: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error processing Doge balance data: {e}")
             return None
+
 
 class BscBep20BalanceFetcher(BalanceFetcher):
     def __init__(self, address, api_key):
@@ -332,14 +366,18 @@ class BscBep20BalanceFetcher(BalanceFetcher):
             if result.isdigit():
                 return int(result) / (10 ** currency.get('decimals', 0))
             else:
-                print(f"Error retrieving balance: {result}")
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                logging.error(f"({current_time}) Error retrieving balance: {result}")
                 return None
         except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching BSC BEP20 balance: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error fetching BSC BEP20 balance: {e}")
             return None
         except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing BSC BEP20 balance data: {e}")
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            logging.error(f"({current_time}) Error processing BSC BEP20 balance data: {e}")
             return None
+
 
 class ICXBalanceFetcher(BalanceFetcher):
     def get_balance(self, currency):
@@ -353,44 +391,51 @@ class ICXBalanceFetcher(BalanceFetcher):
                 "id": 1
             }
             response = requests.post(url, headers=headers, data=json.dumps(data))
-            response.raise_for_status()  # Raises a HTTPError if the HTTP request returned an unsuccessful status code
-            data = response.json()
-            
-            balance = data.get('result', None)
-            if balance:
-                return int(balance, 16) / (10 ** 18)  # Convert from hex to decimal and adjust for ICX's 18 decimal places
+            if response.status_code == 200:  
+                data = response.json()
+                
+                balance = data.get('result', None)
+                if balance:
+                    return int(balance, 16) / (10 ** 18)  # Convert from hex to decimal and adjust for ICX's 18 decimal places
+                else:
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    print(f"({current_time}) Error retrieving balance: {balance}")
+                    return None
             else:
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
                 return None
-        except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-            print(f"Error fetching ICX balance: {e}")
-            return None
-        except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-            print(f"Error processing ICX balance data: {e}")
+        except Exception as e:  
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"({current_time}) Error fetching ICX balance: {e}")
             return None
 
 class StellarBalanceFetcher(BalanceFetcher):
     def get_balance(self, currency):
-        return get_balance_stellar(self.address)
-
-def get_balance_stellar(address):
-    try:
-        response = requests.get(f"https://horizon.stellar.org/accounts/{address}")
-        response.raise_for_status()  # Raises a HTTPError if the HTTP request returned an unsuccessful status code
-        data = response.json()
-        
-        if 'balances' in data and isinstance(data['balances'], list):
-            for balance in data['balances']:
-                if balance['asset_type'] == "native":
-                    return float(balance['balance'])
+        try:
+            response = requests.get(f"https://horizon.stellar.org/accounts/{self.address}")
+            if response.status_code == 200:  
+                data = response.json()
+                
+                if 'balances' in data and isinstance(data['balances'], list):
+                    for balance in data['balances']:
+                        if balance['asset_type'] == "native":
+                            return float(balance['balance'])
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    print(f"({current_time}) No native balance found for Stellar address")
+                    return None
+                else:
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    print(f"({current_time}) Error processing Stellar balance data: balances not found or not a list")
+                    return None
+            else:
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+                return None
+        except Exception as e:  
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"({current_time}) Error fetching Stellar balance: {e}")
             return None
-        else:
-            return None
-    except requests.exceptions.RequestException as e:  # Catch any requests-related exceptions
-        print(f"Error fetching Stellar balance: {e}")
-        return None
-    except (ValueError, KeyError) as e:  # Catch exceptions related to JSON decoding or accessing a key in a dictionary
-        print(f"Error processing Stellar balance data: {e}")
-        return None
 
 from urllib.parse import urlencode
 class BalanceFetcher:
@@ -404,7 +449,8 @@ class BalanceFetcher:
             return response.json()['result']
         else:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            raise Exception(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+            print(f"({current_time}) Error: HTTP {response.status_code} - {response.text}")
+            return None
 
 class EtcBalanceFetcher(BalanceFetcher):
     def __init__(self, address, api_key=None):
@@ -420,9 +466,20 @@ class EtcBalanceFetcher(BalanceFetcher):
             "apikey": api_key if api_key is not None else self.api_key
         }
         url = base_url + "?" + urlencode(query_params)
-        balance_wei = self._get_balance(url)
-        balance_etc = int(balance_wei, 16) / (10 ** 18)  # Convert the hexadecimal result to an integer and from wei to ETC
-        return balance_etc
+        try:
+            balance_wei = self._get_balance(url)
+            if balance_wei.isdigit():
+                balance_etc = int(balance_wei, 16) / (10 ** 18)  # Convert the hexadecimal result to an integer and from wei to ETC
+                return balance_etc
+            else:
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                print(f"({current_time}) Error retrieving balance: {balance_wei}")
+                return None
+        except Exception as e:
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"({current_time}) Error in EtcBalanceFetcher: {e}")
+            return None
+
 
 addresses = {
     "XRP": "r4KR4HraNJYQtufsQCSZNQQuFx2fiNhGxv",
@@ -491,14 +548,37 @@ tokens = [
     {"name": "BNB_BEP20", "symbol": "bnb_bep20", "decimals": 18, "fetcher": BscBep20BalanceFetcher(address=addresses["BNB_BEP20"], api_key="W5IRFIP8Z1EM1Z1CKM4WRB3TDXKAUN9R3R")},
     {"name": "XLM", "symbol": "xlm", "decimals": 7, "fetcher": StellarBalanceFetcher(address=addresses["XLM"])}
     ]
+
+fetcher_currencies = {
+    XrpBalanceFetcher: 'xrp',
+    EtherscanBalanceFetcher: 'eth',
+    TronscanBalanceFetcher: 'trx',
+    NeoBalanceFetcher: 'neo',
+    PolygonscanBalanceFetcher: 'matic',
+    LtcBalanceFetcher: 'ltc',
+    MaticBalanceFetcher: 'matic',
+    BitcoinBalanceFetcher: 'btc',
+    BitcoinCashBalanceFetcher: 'bch',
+    QtumBalanceFetcher: 'qtum',
+    DogeBalanceFetcher: 'doge',
+    BnbBep2BalanceFetcher: 'bnb',
+    BscBep20BalanceFetcher: 'bnb',
+    CardanoBalanceFetcher: 'ada',
+    StellarBalanceFetcher: 'xlm',
+    EtcBalanceFetcher: 'etc'
+    # Add other fetchers here if needed
+}
+
+
+
 # Fetch and print balances
 for fetcher in fetchers:
+    currency = fetcher_currencies[fetcher.__class__]
     try:
-        balance = fetcher.get_balance('icx') # or replace 'icx' with the correct currency for each fetcher
+        balance = fetcher.get_balance(currency)
         print(f"{fetcher.__class__.__name__} Balance: {balance}")
     except Exception as e:
-        print(f"Error retrieving balance for {fetcher.__class__.__name__}: {str(e)}")
-
+        print(f"Error retrieving {currency.upper()} balance: {e}")
 
 while True:
     # ایجاد اتصال به دیتابیس
