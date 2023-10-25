@@ -56,7 +56,9 @@ This Python program retrieves and displays the balances of various digital curre
 
 ## Supported Digital Currencies
 
+## Supported Digital Currencies
 
+|  | |  | |
 | --- | --- | --- | --- |
 | XRP | ETH | TRX | USDT |
 | MATIC | LTC | BTC | BCH |
@@ -64,6 +66,7 @@ This Python program retrieves and displays the balances of various digital curre
 | DOGE | ICX | BNB | SHIBA |
 | BNB_BEP20 | XLM | LINK | ETC |
 | MANA | | | |
+
 
 
 ## Installation and Usage
