@@ -2,6 +2,7 @@
 ## Get Balance 16 Network & 21 coin 
  <img src="https://github.com/ramincsy/Get-Balances/blob/main/temp.jpeg" width="600">
 
+<img src="https://github.com/ramincsy/Get-Balances/blob/main/digi.JPG" width="400">
 
 ## Description
 
