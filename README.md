@@ -9,16 +9,18 @@
     <td>XRP - Ripple (XRP)</td>
     <td>ETH - Ethereum (ETH)</td>
     <td>TRX - Tron (TRX)</td>
-    <td>USDT - Tether (USDT)</td>
   </tr>
   <tr>
+    <td>USDT - Tether (USDT)</td>
     <td>MATIC - Polygon (MATIC)</td>
     <td>LTC - Litecoin (LTC)</td>
-    <td>BTC - Bitcoin (BTC)</td>
-    <td>BCH - Bitcoin Cash (BCH)</td>
   </tr>
   <tr>
+    <td>BTC - Bitcoin (BTC)</td>
+    <td>BCH - Bitcoin Cash (BCH)</td>
     <td>ADA - Cardano (ADA)</td>
+  </tr>
+  <tr>
     <td>BNB_BEP2 - Binance Coin (BNB) - BEP2</td>
     <td>QTUM - Qtum (QTUM)</td>
     <td>NEO - NEO (NEO)</td>
@@ -27,15 +29,15 @@
     <td>DOGE - Dogecoin (DOGE)</td>
     <td>ICX - ICON (ICX)</td>
     <td>BNB - Binance Coin (BNB)</td>
-    <td>SHIBA - Shiba Inu (SHIB)</td>
   </tr>
   <tr>
+    <td>SHIBA - Shiba Inu (SHIB)</td>
     <td>BNB_BEP20 - Binance Coin (BNB) - BEP20</td>
     <td>XLM - Stellar (XLM)</td>
-    <td>LINK - Chainlink (LINK)</td>
-    <td>ETC - Ethereum Classic (ETC)</td>
   </tr>
   <tr>
+    <td>LINK - Chainlink (LINK)</td>
+    <td>ETC - Ethereum Classic (ETC)</td>
     <td>MANA - Decentraland (MANA)</td>
   </tr>
 </table>
