@@ -2,7 +2,7 @@
 ## Get Balance 16 Network & 21 coin 
 <div align="center">
   <img src="https://github.com/ramincsy/Get-Balances/blob/main/temp.jpeg" width="400">
-  <img src="https://github.com/ramincsy/Get-Balances/blob/main/digi.JPG" style="width: 600px; height: 400px;">
+  <img src="https://github.com/ramincsy/Get-Balances/blob/main/digi.JPG" style="width: 400px; height: 600px;">
 </div>
 <table>
   <tr>
