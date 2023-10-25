@@ -56,7 +56,7 @@ This Python program retrieves and displays the balances of various digital curre
 
 ## Supported Digital Currencies
 
-| Column 1 | Column 2 | Column 3 | Column 4 |
+
 | --- | --- | --- | --- |
 | XRP | ETH | TRX | USDT |
 | MATIC | LTC | BTC | BCH |
