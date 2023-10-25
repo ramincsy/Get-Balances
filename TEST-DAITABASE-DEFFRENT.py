@@ -16,9 +16,9 @@ import threading
 
 # مشخصات اتصال به دیتابیس  
 server = '.'  
-database = 'Get-Balance-Rebital'  
-username = 'sa'  
-password = 'Rebital@123'  
+database = 'database-name'  
+username = 'user'  
+password = 'password'  
 driver= '{ODBC Driver 17 for SQL Server}'  
 
 # راه اندازی لاگر
