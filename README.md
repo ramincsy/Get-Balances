@@ -2,7 +2,7 @@
 ## Get Balance 16 Network & 21 coin 
  
 
-![Project Icon](https://link_to_your_project_icon.png)
+![Project Icon](https://github.com/ramincsy/Get-Balances/blob/main/temp.jpeg))
 
 ## Description
 
@@ -44,7 +44,7 @@ This Python program retrieves and displays the balances of various digital curre
 2. **Clone the Project:** Clone the project from GitHub.
 
     ```bash
-    git clone https://github.com/yourusername/yourproject.git
+    git clone [https://github.com/ramincsy/Get-Balances.git]
     ```
 
 ## Features
