@@ -56,16 +56,38 @@ This Python program retrieves and displays the balances of various digital curre
 
 ## Supported Digital Currencies
 
-## Supported Digital Currencies
+### Group 1
+- XRP
+- ETH
+- TRX
+- USDT
 
-|  | |  | |
-| --- | --- | --- | --- |
-| XRP | ETH | TRX | USDT |
-| MATIC | LTC | BTC | BCH |
-| ADA | BNB_BEP2 | QTUM | NEO |
-| DOGE | ICX | BNB | SHIBA |
-| BNB_BEP20 | XLM | LINK | ETC |
-| MANA | | | |
+### Group 2
+- MATIC
+- LTC
+- BTC
+- BCH
+
+### Group 3
+- ADA
+- BNB_BEP2
+- QTUM
+- NEO
+
+### Group 4
+- DOGE
+- ICX
+- BNB
+- SHIBA
+
+### Group 5
+- BNB_BEP20
+- XLM
+- LINK
+- ETC
+
+### Group 6
+- MANA
 
 
 
