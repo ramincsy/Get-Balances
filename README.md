@@ -4,6 +4,41 @@
   <img src="https://github.com/ramincsy/Get-Balances/blob/main/temp.jpeg" width="400">
   <img src="https://github.com/ramincsy/Get-Balances/blob/main/digi.JPG" width="400">
 </div>
+<table>
+  <tr>
+    <td>XRP - Ripple (XRP)</td>
+    <td>ETH - Ethereum (ETH)</td>
+    <td>TRX - Tron (TRX)</td>
+    <td>USDT - Tether (USDT)</td>
+  </tr>
+  <tr>
+    <td>MATIC - Polygon (MATIC)</td>
+    <td>LTC - Litecoin (LTC)</td>
+    <td>BTC - Bitcoin (BTC)</td>
+    <td>BCH - Bitcoin Cash (BCH)</td>
+  </tr>
+  <tr>
+    <td>ADA - Cardano (ADA)</td>
+    <td>BNB_BEP2 - Binance Coin (BNB) - BEP2</td>
+    <td>QTUM - Qtum (QTUM)</td>
+    <td>NEO - NEO (NEO)</td>
+  </tr>
+  <tr>
+    <td>DOGE - Dogecoin (DOGE)</td>
+    <td>ICX - ICON (ICX)</td>
+    <td>BNB - Binance Coin (BNB)</td>
+    <td>SHIBA - Shiba Inu (SHIB)</td>
+  </tr>
+  <tr>
+    <td>BNB_BEP20 - Binance Coin (BNB) - BEP20</td>
+    <td>XLM - Stellar (XLM)</td>
+    <td>LINK - Chainlink (LINK)</td>
+    <td>ETC - Ethereum Classic (ETC)</td>
+  </tr>
+  <tr>
+    <td>MANA - Decentraland (MANA)</td>
+  </tr>
+</table>
 
 
 ## Description
